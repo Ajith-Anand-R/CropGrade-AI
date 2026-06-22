@@ -866,6 +866,12 @@
                 <span class="status-dot status-offline" id="apiDot"></span>
                 <span id="apiTxt">API Offline</span>
             </div>
+            <button class="status-badge btn-settings" onclick="openApiSettings()" style="background:none; border:1px solid var(--border-color); color:var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:4px 8px; border-radius:20px; transition:var(--transition);" title="Configure API Endpoint">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.99l1.005.831a1.125 1.125 0 01.26 1.43l-1.297 2.247a1.125 1.125 0 01-1.37.491l-1.216-.456c-.356-.133-.751-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.831a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </button>
         </div>
     </header>
 
@@ -1280,7 +1286,6 @@
         // State variables
         let rawImageObj = null;
         let scanResults = null;
-        let selectedInferenceMode = 'simulation';
         let hoveredBoxId = null;
 
         // Custom slider removed
@@ -1328,10 +1333,7 @@
             else if (screenId === 'screen-dashboard') navItems[2].classList.add('active');
         }
 
-        // Toggle API Endpoint configurations
-        function toggleInferenceMode(val) {
-            selectedInferenceMode = val;
-        }
+
 
         // Trigger file input dialog
         function triggerFileSelect() {
@@ -1356,15 +1358,7 @@
                     rawImageObj = img;
                     drawCanvas(img, 'previewCanvas');
                     
-                    if (selectedInferenceMode === 'api') {
-                        uploadToInferenceAPI(file);
-                    } else {
-                        // Simulation delay
-                        document.getElementById('loadingSubtitle').innerText = "Analyzing tomato sizes and grades...";
-                        setTimeout(() => {
-                            runSimulationGrading();
-                        }, 1200);
-                    }
+                    uploadToInferenceAPI(file);
                 };
                 img.src = e.target.result;
             };
@@ -1381,7 +1375,8 @@
 
         // Upload image to FastAPI endpoint
         async function uploadToInferenceAPI(file) {
-            const endpoint = "http://localhost:8000/predict";
+            const baseUrl = localStorage.getItem('agrigrade_api_url') || "https://cropgrade-ai-production.up.railway.app";
+            const endpoint = baseUrl + "/predict";
             const fd = new FormData();
             fd.append("file", file);
 
@@ -1398,10 +1393,10 @@
                 syncAPIDataToMVP(data);
 
             } catch (err) {
-                console.error("FastAPI Error, falling back to Simulation Mode: ", err);
-                alert("API backend could not be reached. Switching to Offline Simulation.");
-                toggleInferenceMode('simulation');
-                runSimulationGrading();
+                console.error("FastAPI Error: ", err);
+                alert("API backend could not be reached. Please verify the API status or your custom configuration.");
+                document.getElementById('loadingOverlay').style.display = 'none';
+                resetScan();
             }
         }
 
@@ -1479,80 +1474,7 @@
             renderAnalysisView();
         }
 
-        // Run Offline Simulation Mode (Yields clean premium Grade A batch)
-        function runSimulationGrading() {
-            const w = rawImageObj.width;
-            const h = rawImageObj.height;
 
-            const refObject = document.getElementById('refSelect').value;
-            let refPx = Math.round(w * 0.08);
-            let refMm = 27;
-            let coinCircle = [Math.round(w * 0.75), Math.round(h * 0.75), Math.round(w * 0.04)];
-
-            if (refObject === 'a4') {
-                refMm = 297;
-                refPx = Math.round(w * 0.45);
-                coinCircle = null;
-            }
-
-            // Generate clean batch scenario: 12 Tomatoes
-            const count = 12;
-            const detections = [];
-            
-            const a = 12, b = 0, c = 0;
-            const red = 10, pink = 2, green = 0, overripe = 0;
-            const cracked = 0, rotten = 0, bruised = 0;
-            const avgSize = 65; // mm
-            const shelfLife = 7; // Days
-            const price = 32; // ₹/kg
-            const buyer = "Exporter";
-
-            // Populate bounding boxes
-            for (let i = 0; i < count; i++) {
-                const cellX = (i % 4) * (w / 4.2) + (w * 0.05);
-                const cellY = Math.floor(i / 4) * (h / 3.2) + (h * 0.1);
-                const boxW = Math.round((avgSize / refMm) * refPx);
-                const boxH = boxW;
-
-                const x1 = Math.round(cellX + (Math.random() * 10 - 5));
-                const y1 = Math.round(cellY + (Math.random() * 10 - 5));
-                
-                let tGrade = "grade_a";
-                let tDefect = "none";
-                let tRipeness = i < 10 ? "red" : "pink";
-
-                detections.push({
-                    id: i + 1,
-                    bbox: [x1, y1, x1 + boxW, y1 + boxH],
-                    size_mm: avgSize,
-                    size_category: "Large",
-                    ripeness: tRipeness,
-                    defect: tDefect,
-                    grade: tGrade,
-                    shelf_life: "7 Days"
-                });
-            }
-
-            scanResults = {
-                total: count,
-                grade_a: a,
-                grade_b: b,
-                grade_c: c,
-                ripeness: { red, pink, green, overripe },
-                defects: { cracked, rotten, bruised },
-                avg_size: avgSize,
-                shelf_life: shelfLife,
-                price: price,
-                buyer: buyer,
-                grade: "Grade A",
-                raw: {
-                    detections: detections,
-                    coin_circle: coinCircle
-                }
-            };
-
-            renderAnalysisView();
-        }
 
         // Switch to Screen 3 and draw overlays
         function renderAnalysisView() {
@@ -1925,14 +1847,14 @@
         async function checkBackendAPI() {
             const apiDot = document.getElementById('apiDot');
             const apiTxt = document.getElementById('apiTxt');
+            const baseUrl = localStorage.getItem('agrigrade_api_url') || "https://cropgrade-ai-production.up.railway.app";
             
             try {
-                const res = await fetch("http://localhost:8000/");
+                const res = await fetch(baseUrl + "/");
                 if (res.ok) {
                     apiDot.className = "status-dot status-api-connected";
                     apiTxt.innerText = "API Online";
-                    document.getElementById('apiBadge').style.borderColor = 'rgba(59,130,246,0.3)';
-                    toggleInferenceMode('api');
+                    document.getElementById('apiBadge').style.borderColor = 'rgba(34,197,94,0.3)';
                 } else {
                     throw new Error();
                 }
@@ -1940,10 +1862,26 @@
                 apiDot.className = "status-dot status-offline";
                 apiTxt.innerText = "API Offline";
                 document.getElementById('apiBadge').style.borderColor = 'var(--border-color)';
-                toggleInferenceMode('simulation');
             }
 
             setTimeout(checkBackendAPI, 12000);
+        }
+
+        // Open Settings Modal for Custom API URL
+        function openApiSettings() {
+            const currentApi = localStorage.getItem('agrigrade_api_url') || "https://cropgrade-ai-production.up.railway.app";
+            const newApi = prompt("Configure your custom live backend API URL (e.g. your Railway URL):\n\nLeave empty to reset to default Railway endpoint.", currentApi);
+            
+            if (newApi !== null) {
+                const cleaned = newApi.trim().replace(/\/$/, "");
+                if (cleaned) {
+                    localStorage.setItem('agrigrade_api_url', cleaned);
+                } else {
+                    localStorage.removeItem('agrigrade_api_url');
+                }
+                alert("API Endpoint updated! Checking connectivity...");
+                checkBackendAPI();
+            }
         }
 
         // PWA Setup
