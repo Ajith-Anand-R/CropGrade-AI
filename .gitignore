@@ -1,0 +1,25 @@
+# Virtual environment
+venv/
+
+# Local runs and dataset folders
+runs/
+dataset/
+TomatoDataset/
+
+# Ignore local temporary files in the root folder only
+/*.pt
+/*.jpg
+/*.png
+/*.txt
+/*.yaml
+
+# Track essential assets
+!Models/best.pt
+!Frontend/*.png
+
+# Cache files
+.graphify_cached.json
+.agents/
+graphify-out/
+**/__pycache__/
+*.pyc

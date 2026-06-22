@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriGrade AI - Certificate Verification</title>
+    <!-- Google Fonts Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-color: #04060b;
+            --panel-bg: rgba(10, 16, 30, 0.65);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --primary: #ff4e50;
+            --primary-glow: linear-gradient(135deg, #ff4e50, #f98e23);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #f43f5e;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --shadow: 0 16px 48px 0 rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-image: linear-gradient(180deg, rgba(4, 6, 11, 0.88) 0%, rgba(4, 6, 11, 0.96) 100%), url('agri_bg.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .cert-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-radius: 28px;
+            padding: 40px;
+            width: 100%;
+            max-width: 650px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Gold border effect for Grade A */
+        .cert-card.grade-a-theme {
+            border-color: #f9d423;
+            box-shadow: 0 12px 40px rgba(249, 212, 35, 0.15);
+        }
+
+        .cert-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: var(--primary-glow);
+        }
+
+        .cert-card.grade-a-theme::before {
+            background: linear-gradient(90deg, #f9d423, #ff4e50);
+        }
+
+        .header-logo {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 24px 0;
+            width: 100%;
+        }
+
+        .badge-container {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 16px 0;
+        }
+
+        .grade-badge {
+            font-family: 'Outfit', sans-serif;
+            font-size: 48px;
+            font-weight: 800;
+            padding: 10px 32px;
+            border-radius: 20px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            margin-bottom: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        }
+
+        .bg-a { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 2px solid var(--success); }
+        .bg-b { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 2px solid var(--warning); }
+        .bg-c { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 2px solid var(--danger); }
+
+        .cert-statement {
+            font-size: 15px;
+            line-height: 1.6;
+            max-width: 480px;
+            margin: 0 auto 24px auto;
+            color: #d1d5db;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-lbl {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-val {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .footer-sigs {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 30px;
+        }
+
+        .sig-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .sig-line {
+            width: 120px;
+            height: 1px;
+            background: var(--text-muted);
+        }
+
+        .sig-text {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .seal {
+            font-size: 24px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 50%;
+            border: 1px dashed var(--text-muted);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .btn-back:hover {
+            color: var(--text-main);
+            background: rgba(255,255,255,0.03);
+            border-color: var(--border-hover);
+        }
+
+        /* Loading Spinner */
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid rgba(255, 94, 98, 0.1);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cert-card" id="certCard">
+        
+        <!-- Loading State -->
+        <div class="loader-container" id="loadingState">
+            <div class="spinner"></div>
+            <h3>Verifying AgriGrade Certificate...</h3>
+            <p style="font-size:12px; color:var(--text-muted);">Fetching details from cloud records</p>
+        </div>
+
+        <!-- Loaded Certificate Content -->
+        <div id="certContent" style="display: none;">
+            <div class="header-logo" style="display: flex; justify-content: center; margin-bottom: 12px; color: var(--primary);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 48px; height: 48px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0110.1 20.4a3.745 3.745 0 01-3.297-1.043 3.746 3.746 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0113.9 3.6a3.745 3.745 0 013.297 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                </svg>
+            </div>
+            <h1>AgriGrade AI</h1>
+            <div class="subtitle">Official Verification Certificate</div>
+            
+            <div class="badge-container">
+                <div class="grade-badge" id="gradeBadge">GRADE A</div>
+                <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight:600; letter-spacing: 0.5px;">Quality Classification</div>
+            </div>
+
+            <p class="cert-statement">
+                This certifies that the produce batch listed below has been scanned and classified using the AgriGrade AI Computer Vision engine, yielding the following grading and shelf-life diagnostics.
+            </p>
+
+            <div class="details-grid">
+                <div class="detail-item">
+                    <span class="detail-lbl">Batch ID</span>
+                    <span class="detail-val" id="valBatchId">TM001</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-lbl">Produce Type</span>
+                    <span class="detail-val" id="valProduce">Tomato</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-lbl">Produce Count</span>
+                    <span class="detail-val" id="valCount">12 Tomatoes</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-lbl">Average Size</span>
+                    <span class="detail-val" id="valSize">72 mm</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-lbl">Estimated Shelf Life</span>
+                    <span class="detail-val" id="valShelfLife">5 Days</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-lbl">Market Value</span>
+                    <span class="detail-val" id="valPrice">₹24/kg</span>
+                </div>
+                <div class="detail-item" style="grid-column: 1 / -1;">
+                    <span class="detail-lbl">Recommended Channel</span>
+                    <span class="detail-val" id="valBuyer" style="color:var(--success)">Exporter</span>
+                </div>
+            </div>
+
+            <div class="footer-sigs">
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span class="sig-text">AgriGrade Engine</span>
+                </div>
+                <div class="seal" style="border: 2px dashed var(--primary); color: var(--primary); background: rgba(255, 78, 80, 0.05);">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 24px; height: 24px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <span class="sig-text">Certified On</span>
+                    <span style="font-size:10px; font-weight: 600;" id="valCertDate">22 Jun 2026</span>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            
+            <a href="index.html" class="btn-back">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 16px; height: 16px; margin-right: 4px; display: inline-block; vertical-align: text-bottom;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" style="display: none;">
+            <div class="header-logo" style="display: flex; justify-content: center; margin-bottom: 16px; color: var(--danger);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 48px; height: 48px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h2 style="font-family:'Outfit'; font-weight:700; margin-bottom:12px;">Certificate Not Found</h2>
+            <p class="error-message">We were unable to locate a batch matching the provided Batch ID in the cloud database.</p>
+            <p style="font-size:12px; color:var(--text-muted); line-height: 1.5; margin-bottom: 20px;">
+                Ensure the Batch ID is correct or scan the batch again on the main PWA dashboard to log details.
+            </p>
+            <a href="index.html" class="btn-back">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" style="width: 16px; height: 16px; margin-right: 4px; display: inline-block; vertical-align: text-bottom;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Back to Dashboard
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = "https://hsljacdnuwuettuacyea.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzbGphY2RudXd1ZXR0dWFjeWVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjMxMTcsImV4cCI6MjA5NjM5OTExN30.JPPDf0ceAFP-tt1qWEjFQ3BGiMhfIa6XAcfXe0bn1no";
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        window.addEventListener('load', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const batchId = urlParams.get('id');
+
+            if (!batchId) {
+                showError("No Batch ID specified.");
+                return;
+            }
+
+            try {
+                // Fetch batch details from Supabase
+                const { data, error } = await supabaseClient
+                    .from('crop_batches')
+                    .select('*')
+                    .eq('id', batchId)
+                    .single();
+
+                if (error || !data) {
+                    throw new Error("Batch not found");
+                }
+
+                renderCertificate(data);
+
+            } catch (err) {
+                console.error(err);
+                showError();
+            }
+        });
+
+        function renderCertificate(batch) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('certContent').style.display = 'block';
+
+            // Set Grade and Styling
+            const gradeBadge = document.getElementById('gradeBadge');
+            const certCard = document.getElementById('certCard');
+            const rawGrade = batch.batch_grade || "Grade B";
+            
+            gradeBadge.innerText = rawGrade.toUpperCase();
+            
+            if (rawGrade === "Grade A") {
+                gradeBadge.className = "grade-badge bg-a";
+                certCard.classList.add('grade-a-theme');
+            } else if (rawGrade === "Grade B") {
+                gradeBadge.className = "grade-badge bg-b";
+            } else {
+                gradeBadge.className = "grade-badge bg-c";
+            }
+
+            // Populate text values
+            document.getElementById('valBatchId').innerText = batch.id;
+            document.getElementById('valProduce').innerText = batch.produce_type;
+            document.getElementById('valCount').innerText = `${batch.total_count} Tomatoes`;
+            document.getElementById('valSize').innerText = `${batch.avg_size} mm`;
+            document.getElementById('valShelfLife').innerText = `${batch.shelf_life_days} Days`;
+            document.getElementById('valPrice').innerText = `₹${batch.market_value}/kg`;
+            document.getElementById('valBuyer').innerText = batch.recommended_buyer;
+            
+            // Format Date
+            const certDate = new Date(batch.created_at);
+            const dateStr = certDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+            document.getElementById('valCertDate').innerText = dateStr;
+            
+            // Set buyer color accent based on channel
+            const buyerVal = document.getElementById('valBuyer');
+            if (batch.batch_grade === "Grade A") {
+                buyerVal.style.color = "var(--success)";
+            } else if (batch.batch_grade === "Grade B") {
+                buyerVal.style.color = "var(--warning)";
+            } else {
+                buyerVal.style.color = "var(--danger)";
+            }
+        }
+
+        function showError() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
